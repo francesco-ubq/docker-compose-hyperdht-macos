@@ -1,0 +1,107 @@
+# Standalone test: HyperDHT cross-container connectivity on macOS Docker Desktop
+#
+# Usage:
+#   1. Start bootstrap + server:
+#      docker compose up bootstrap server
+#
+#   2. Copy the server KEY from logs, then in another terminal:
+#      SERVER_KEY=<key> docker compose up client
+#
+#   3. Run same-container test (control group):
+#      docker compose up same-container-test
+#
+#   4. Cleanup:
+#      docker compose down
+#
+# Expected results on macOS Docker Desktop:
+#   - same-container-test: SUCCESS
+#   - client (cross-container): BROKEN (stream opens but no data flows)
+
+services:
+  bootstrap:
+    image: node:22-bookworm-slim
+    command:
+      - sh
+      - -c
+      - |
+        apt-get update -qq && apt-get install -y -qq netcat-openbsd >/dev/null 2>&1
+        npm install -g hyperdht 2>/dev/null
+        echo "Starting bootstrap..."
+        exec hyperdht --bootstrap --host $$(hostname -i) --port 30001
+    networks:
+      - dht
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -zu 127.0.0.1 30001"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+
+  server:
+    image: node:22-bookworm-slim
+    depends_on:
+      bootstrap:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        cp /mnt/server.mjs /app/server.mjs
+        cd /app && npm install hyperdht 2>/dev/null
+        exec node server.mjs
+    working_dir: /app
+    volumes:
+      - ./server.mjs:/mnt/server.mjs:ro
+    environment:
+      BOOTSTRAP: bootstrap:30001
+    networks:
+      - dht
+
+  client:
+    image: node:22-bookworm-slim
+    depends_on:
+      bootstrap:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        cp /mnt/client.mjs /app/client.mjs
+        cd /app && npm install hyperdht @hyperswarm/rpc 2>/dev/null
+        exec node client.mjs
+    working_dir: /app
+    volumes:
+      - ./client.mjs:/mnt/client.mjs:ro
+    environment:
+      BOOTSTRAP: bootstrap:30001
+      SERVER_KEY: ${SERVER_KEY:-}
+    networks:
+      - dht
+    profiles:
+      - client
+
+  same-container-test:
+    image: node:22-bookworm-slim
+    depends_on:
+      bootstrap:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        cp /mnt/same-container-test.mjs /app/same-container-test.mjs
+        cd /app && npm install hyperdht 2>/dev/null
+        exec node same-container-test.mjs
+    working_dir: /app
+    volumes:
+      - ./same-container-test.mjs:/mnt/same-container-test.mjs:ro
+    environment:
+      BOOTSTRAP: bootstrap:30001
+    networks:
+      - dht
+    profiles:
+      - same-container
+
+networks:
+  dht:
+    driver: bridge
