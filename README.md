@@ -26,7 +26,7 @@ docker compose down
 | Test | macOS Docker Desktop | Linux Docker (native) |
 |------|---------------------|-----------------------|
 | Same-container | SUCCESS | SUCCESS |
-| Cross-container | **BROKEN** | Likely works (untested) |
+| Cross-container | doesn't work | Likely works (untested) |
 
 ## What Happens
 
@@ -35,4 +35,4 @@ docker compose down
 
 ## Root Cause
 
-Docker Desktop on macOS runs containers in a Linux VM with virtualized networking. UDX (the UDP transport layer used by HyperDHT) creates reliable streams over UDP that don't work correctly through the VM's virtual bridge network. Basic UDP (dgram) works fine cross-container — the issue is specific to UDX's protocol handling.
+Docker Desktop on macOS runs containers in a Linux VM with virtualized networking. UDX (the UDP transport layer used by HyperDHT) creates reliable streams over UDP that don't work correctly through the VM's virtual bridge network. Basic UDP (dgram) works fine cross-container — the issue is specific to UDX's protocol handling. - Assumption to be verified. Note IPV6 is disabled by default.
