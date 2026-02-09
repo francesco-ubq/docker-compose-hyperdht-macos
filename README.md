@@ -26,7 +26,7 @@ docker compose down
 | Test | macOS Docker Desktop | Linux Docker (native) |
 |------|---------------------|-----------------------|
 | Same-container | SUCCESS | SUCCESS |
-| Cross-container | doesn't work | Likely works (untested) |
+| Cross-container | doesn't work | Works |
 
 ## What Happens
 
